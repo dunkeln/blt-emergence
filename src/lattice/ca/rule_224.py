@@ -1,5 +1,7 @@
 import numpy as np
 from typing import Tuple
+
+from torch import no_grad
 from .core import BaseModel
 
 
@@ -31,6 +33,7 @@ class Rule_224(BaseModel):
                 count += self.lattice[nx, ny]
         return count
 
+    @no_grad
     def __next__(self):
         """Compute the next state of the cellular automaton"""
         new_lattice = np.copy(self.lattice)
