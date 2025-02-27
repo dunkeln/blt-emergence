@@ -3,7 +3,7 @@ from typing import Tuple
 from .core import BaseModel
 
 
-class Rule_224(BaseModel):
+class Lenia(BaseModel):
     """
     Rules:
         Any live cell with fewer than two live neighbours dies (referred to as underpopulation or exposure[2]).
@@ -15,7 +15,6 @@ class Rule_224(BaseModel):
         super().__init__(**kwargs)
         self.lattice = np.random.choice([0, 1], self.shape)
         self.shape = self.lattice.shape
-        self.kernel = None
 
     def count_neighbors(self, x, y):
         """Count the number of live neighbors around cell (x, y)"""
