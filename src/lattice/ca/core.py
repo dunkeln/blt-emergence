@@ -5,7 +5,7 @@ from typing import Tuple
 import logging
 
 class BaseModel:
-    def __init__(self, shape: Tuple[int, int] =(20, 20), device='cpu', dtype=torch.bfloat16) -> None:
+    def __init__(self, shape: Tuple[int, int] =(20, 20), device='cpu', dtype=torch.float16) -> None:
         # INFO: type checkings
         if not (isinstance(shape, tuple) and len(shape) == 2 and all(isinstance(i, int) for i in shape)):
             raise TypeError(f"Expected shape to be a tuple of 2 integers, got {shape}")
@@ -29,6 +29,7 @@ class BaseModel:
         self.lattice = new_lattice
         return self
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    model = BaseModel(shape=(4, 4))
+    def get_batches(self, count=32):
+        batch = [ next(self).lattice for _ in range(count) ]
+        batch = torch.stack(batch).unsqueeze(dim=1)
+        return batch

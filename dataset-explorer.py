@@ -24,33 +24,27 @@ def _(mo):
         """
         # Defining the data
 
-        **First steps:** define a simple 2-D lattice and train a transfomer architecture on that
+        **First steps:** define a simple 2-D lattice and train a transfomer architecture   
+        **Potential route:** study on a 3-D lattice
 
-        ## Options
-        + Langevin dynamics
-        + continuous-time Monte Carlo ✅
+        ## exploration strategy
+
+        + [x] Cellular Automata
+        + [ ] continuous Cellular Automata
+        + [ ] Lenia *(discretized biology-mimicking CA)*
+        + [ ] continuous-time Monte Carlo ✅
+        + [ ] Langevin dynamics
         """
     )
     return
 
 
 @app.cell
-def _(BaseModel, torch):
+def _(BaseModel, discrete_heatmap, torch):
     ca = BaseModel(shape=(150, 150), dtype=torch.int8)
-    return (ca,)
-
-
-@app.cell
-def _(ca, torch):
-    ts = torch.stack([next(ca).lattice for _ in range(250)], axis=0)
-    time_series = ts.numpy()
-    return time_series, ts
-
-
-@app.cell
-def _(discrete_heatmap, time_series):
+    time_series = ca.get_batches(128)
     discrete_heatmap(time_series)
-    return
+    return ca, time_series
 
 
 if __name__ == "__main__":

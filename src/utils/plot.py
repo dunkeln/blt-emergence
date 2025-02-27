@@ -1,8 +1,11 @@
 import plotly.graph_objects as go
 import torch
 
-def discrete_heatmap(time_series: torch.Tensor):
-    num_time_steps, grid_x, grid_y = time_series.shape
+def discrete_heatmap(arg: torch.Tensor):
+    time_series = arg.numpy()
+    if len(time_series.shape) == 4:
+        time_series = time_series.squeeze(1)
+    num_time_steps, _, _ = time_series.shape
 
     fig = go.Figure(
         data=[go.Heatmap(z=time_series[0], colorscale="cividis", colorbar=dict(title="Value"))],
