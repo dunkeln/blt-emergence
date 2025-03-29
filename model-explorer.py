@@ -8,45 +8,41 @@ app = marimo.App(width="full")
 def _():
     import marimo as mo
     import torch
-    import torch.nn.functional as F
-    from src.lattice.ca import BaseModel
+    import torch.nn as nn
+    import io
+    from src.lattice.ca import Rule224
     from src.utils import discrete_heatmap
-    return BaseModel, F, discrete_heatmap, mo, torch
+    import plotly.graph_objects as go
+    return Rule224, discrete_heatmap, go, io, mo, nn, torch
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-        # Exploratory phase of BLT architecture
-
-        **Problems:**   
-        Traditional tokenization too strict.   
-        Byte-Latent Transformer encoding prevails in 1-D.   
-        ViT encodes strict patches.
-        """
-    )
+    mo.md(r"""## Ideas from references""")
     return
 
 
 @app.cell
-def _(BaseModel, discrete_heatmap):
-    ca = BaseModel(shape=(15, 15))
-    discrete_heatmap(ca.get_batches())
-    return (ca,)
+def _(Rule224, torch):
+    ca = Rule224(shape=(50, 50), dtype=torch.int8)
+    time_series = ca.time_steps(100)
+    return ca, time_series
+
+
+@app.cell
+def _(discrete_heatmap, time_series):
+    discrete_heatmap(time_series)
+    return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-        # Goal
+    mo.md(r"""### Scheme: Patching from Autoregressive Model""")
+    return
 
-        + foresee next state
-        + multi-step forecasting   
-            *o/p should have same encoding as input*
-        """
-    )
+
+@app.cell
+def _():
     return
 
 

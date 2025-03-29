@@ -1,35 +1,25 @@
 import torch
 from torch import no_grad
-import torch.nn.functional as F
 from typing import Tuple
-import logging
 
 class BaseModel:
     def __init__(self, shape: Tuple[int, int] =(20, 20), device='cpu', dtype=torch.float16) -> None:
-        # INFO: type checkings
-        if not (isinstance(shape, tuple) and len(shape) == 2 and all(isinstance(i, int) for i in shape)):
-            raise TypeError(f"Expected shape to be a tuple of 2 integers, got {shape}")
-
         self.shape = shape
         self.dtype = dtype
-        with torch.no_grad():
-            self.lattice = torch.randint(0, 2, self.shape, dtype=self.dtype, device=device)
-            self.kernel = torch.tensor([
-                [1, 1, 1],
-                [1, 0, 1],
-                [1, 1, 1],
-            ], dtype=self.dtype, device=device).unsqueeze(0).unsqueeze(0)
+        self.device = device
+        self.lattice = torch.zeros(self.shape, dtype=self.dtype, device=device)
 
     @no_grad
     def __next__(self):
-        lattice = self.lattice.to(self.dtype).unsqueeze(0).unsqueeze(0)
-        toroid = F.pad(lattice, (1, 1, 1, 1), mode='circular')
-        neighbors = F.conv2d(toroid, self.kernel).squeeze()
-        new_lattice = ((neighbors == 3) | ((self.lattice == 1) & (neighbors == 2))).to(self.dtype)
-        self.lattice = new_lattice
-        return self
+        raise NotImplementedError("method `__next__` not implemented")
 
-    def get_batches(self, count=32):
-        batch = [ next(self).lattice for _ in range(count) ]
-        batch = torch.stack(batch).unsqueeze(dim=1)
-        return batch
+    def time_steps(self):
+        raise NotImplementedError("method `get_series` not implemented")
+
+    def byte_encode(self):
+        flat_tensor = self.lattice.flatten()
+        encoded = flat_tensor.numpy().tobytes()
+        return encoded
+
+    def byte_decode(self, stream: bytes):
+        return torch.frombuffer(stream, dtype=self.dtype).clone().reshape(*self.shape)

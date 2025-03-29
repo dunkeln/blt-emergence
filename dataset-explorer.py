@@ -12,10 +12,9 @@ def _():
     import plotly.graph_objects as go
     import torch
 
-    from src.lattice.ca import BaseModel
-    from src.lattice.ca.rule_224 import Rule_224
+    from src.lattice.ca import Rule224
     from src.utils import discrete_heatmap
-    return BaseModel, Rule_224, discrete_heatmap, go, mo, np, pl, torch
+    return Rule224, discrete_heatmap, go, mo, np, pl, torch
 
 
 @app.cell(hide_code=True)
@@ -40,11 +39,16 @@ def _(mo):
 
 
 @app.cell
-def _(BaseModel, discrete_heatmap, torch):
-    ca = BaseModel(shape=(150, 150), dtype=torch.int8)
-    time_series = ca.get_batches(128)
+def _(Rule224, discrete_heatmap, torch):
+    ca = Rule224(shape=(150, 150), dtype=torch.int8)
+    time_series = ca.time_steps(128)
     discrete_heatmap(time_series)
     return ca, time_series
+
+
+@app.cell
+def _():
+    return
 
 
 if __name__ == "__main__":

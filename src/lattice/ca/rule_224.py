@@ -1,58 +1,37 @@
-import numpy as np
+import torch
+from torch import no_grad
+import torch.nn.functional as F
 from typing import Tuple
 
-from torch import no_grad
 from .core import BaseModel
 
+class Rule224(BaseModel):
+    def __init__(self, shape: Tuple[int, int] =(20, 20), device='cpu', dtype=torch.float16) -> None:
+        # INFO: type checkings
+        if not (isinstance(shape, tuple) and len(shape) == 2 and all(isinstance(i, int) for i in shape)):
+            raise TypeError(f"Expected shape to be a tuple of 2 integers, got {shape}")
 
-class Rule_224(BaseModel):
-    """
-    Rules:
-        Any live cell with fewer than two live neighbours dies (referred to as underpopulation or exposure[2]).
-        Any live cell with more than three live neighbours dies (referred to as overpopulation or overcrowding).
-        Any live cell with two or three live neighbours lives, unchanged, to the next generation.
-        Any dead cell with exactly three live neighbours will come to life.
-    """
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.lattice = np.random.choice([0, 1], self.shape)
-        self.shape = self.lattice.shape
-        self.kernel = None
-
-    def count_neighbors(self, x, y):
-        """Count the number of live neighbors around cell (x, y)"""
-        neighbors = [
-            (-1, -1), (-1, 0), (-1, 1),
-            (0, -1),         (0, 1),
-            (1, -1), (1, 0), (1, 1)
-        ]
-        count = 0
-        for dx, dy in neighbors:
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < self.shape[0] and 0 <= ny < self.shape[1]:
-                count += self.lattice[nx, ny]
-        return count
+        self.shape = shape
+        self.dtype = dtype
+        self.device = device
+        with torch.no_grad():
+            self.lattice = torch.randint(0, 2, self.shape, dtype=self.dtype, device=device)
+            self.kernel = torch.tensor([
+                [1, 1, 1],
+                [1, 0, 1],
+                [1, 1, 1],
+            ], dtype=self.dtype, device=device).unsqueeze(0).unsqueeze(0)
 
     @no_grad
     def __next__(self):
-        """Compute the next state of the cellular automaton"""
-        new_lattice = np.copy(self.lattice)
-
-        for x in range(self.shape[0]):
-            for y in range(self.shape[1]):
-                live_neighbors = self.count_neighbors(x, y)
-
-                if self.lattice[x, y] == 1:
-                    if live_neighbors < 2 or live_neighbors > 3:
-                        new_lattice[x, y] = 0
-                else:
-                    if live_neighbors == 3:
-                        new_lattice[x, y] = 1
-
+        lattice = self.lattice.to(self.dtype).unsqueeze(0).unsqueeze(0)
+        toroid = F.pad(lattice, (1, 1, 1, 1), mode='circular')
+        neighbors = F.conv2d(toroid, self.kernel).squeeze()
+        new_lattice = ((neighbors == 3) | ((self.lattice == 1) & (neighbors == 2))).to(self.dtype)
         self.lattice = new_lattice
         return self
 
-    def show(self):
-        """Print the current state of the lattice"""
-        print("\n".join("".join("█" if cell else "." for cell in row) for row in self.lattice))
-        print("\n")
+    def time_steps(self, count=32):
+        batch = [ next(self).lattice for _ in range(count) ]
+        batch = torch.stack(batch).unsqueeze(dim=1)
+        return batch

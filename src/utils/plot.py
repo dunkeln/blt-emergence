@@ -8,7 +8,7 @@ def discrete_heatmap(arg: torch.Tensor):
     num_time_steps, _, _ = time_series.shape
 
     fig = go.Figure(
-        data=[go.Heatmap(z=time_series[0], colorscale="cividis", colorbar=dict(title="Value"))],
+        data=[go.Heatmap(z=time_series[0], colorscale="viridis", colorbar=dict(title="Value"))],
         layout=go.Layout(
             template="simple_white",
             title=dict(

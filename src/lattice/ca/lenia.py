@@ -1,54 +1,44 @@
-import numpy as np
+import torch
+from torch import no_grad
+import torch.nn.functional as F
 from typing import Tuple
+
 from .core import BaseModel
 
-
+# FIX: lenia is messed up
 class Lenia(BaseModel):
-    """
-    Rules:
-        Any live cell with fewer than two live neighbours dies (referred to as underpopulation or exposure[2]).
-        Any live cell with more than three live neighbours dies (referred to as overpopulation or overcrowding).
-        Any live cell with two or three live neighbours lives, unchanged, to the next generation.
-        Any dead cell with exactly three live neighbours will come to life.
-    """
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.lattice = np.random.choice([0, 1], self.shape)
-        self.shape = self.lattice.shape
+    def __init__(self, shape: Tuple[int, int] = (64, 64), device='cpu', dtype=torch.float32) -> None:
+        if not (isinstance(shape, tuple) and len(shape) == 2 and all(isinstance(i, int) for i in shape)):
+            raise TypeError(f"Expected shape to be a tuple of 2 integers, got {shape}")
 
-    def count_neighbors(self, x, y):
-        """Count the number of live neighbors around cell (x, y)"""
-        neighbors = [
-            (-1, -1), (-1, 0), (-1, 1),
-            (0, -1),         (0, 1),
-            (1, -1), (1, 0), (1, 1)
-        ]
-        count = 0
-        for dx, dy in neighbors:
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < self.shape[0] and 0 <= ny < self.shape[1]:
-                count += self.lattice[nx, ny]
-        return count
+        self.shape = shape
+        self.dtype = dtype
+        self.device = device
+        self.R = 5
+        self.T = 10
+        with torch.no_grad():
+            self.lattice = torch.rand(self.shape, dtype=self.dtype, device=device)
+            self.kernel = self._create_kernel(self.R, device, dtype)
 
+    def _create_kernel(self, R, device, dtype):
+        K = torch.ones((2 * R + 1, 2 * R + 1), dtype=dtype, device=device)
+        K[R, R] = 0
+        K /= K.sum()
+        return K.unsqueeze(0).unsqueeze(0)
+
+    def _growth(self, U):
+        return (U >= 0.12) & (U <= 0.15) - ((U < 0.12) | (U > 0.15))
+
+    @no_grad
     def __next__(self):
-        """Compute the next state of the cellular automaton"""
-        new_lattice = np.copy(self.lattice)
-
-        for x in range(self.shape[0]):
-            for y in range(self.shape[1]):
-                live_neighbors = self.count_neighbors(x, y)
-
-                if self.lattice[x, y] == 1:
-                    if live_neighbors < 2 or live_neighbors > 3:
-                        new_lattice[x, y] = 0
-                else:
-                    if live_neighbors == 3:
-                        new_lattice[x, y] = 1
-
+        lattice = self.lattice.to(self.dtype).unsqueeze(0).unsqueeze(0)
+        toroid = F.pad(lattice, (self.kernel.shape[-1] // 2,) * 4, mode='circular')
+        neighbors = F.conv2d(toroid, self.kernel).squeeze()
+        new_lattice = torch.clamp(self.lattice + (1 / self.T) * self._growth(neighbors), 0, 1)
         self.lattice = new_lattice
         return self
 
-    def show(self):
-        """Print the current state of the lattice"""
-        print("\n".join("".join("█" if cell else "." for cell in row) for row in self.lattice))
-        print("\n")
+    def time_steps(self, count=32):
+        batch = [next(self).lattice for _ in range(count)]
+        batch = torch.stack(batch).unsqueeze(dim=1)
+        return batch
