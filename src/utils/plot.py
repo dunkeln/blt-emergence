@@ -1,25 +1,24 @@
 import plotly.graph_objects as go
 import torch
 
-def discrete_heatmap(arg: torch.Tensor):
-    time_series = arg.numpy()
-    if len(time_series.shape) == 4:
-        time_series = time_series.squeeze(1)
-    num_time_steps, _, _ = time_series.shape
+def heatmap(time_series: torch.Tensor, colorscale="cividis", title="Time-Evolving Heatmap"):
+    num_time_steps = time_series.size(0)
+    
+    if len(time_series.size()) == 4:
+        time_series = time_series.squeeze(dim=1)
 
     fig = go.Figure(
-        data=[go.Heatmap(z=time_series[0], colorscale="viridis", colorbar=dict(title="Value"))],
+        data=[go.Heatmap(z=time_series[0], colorscale=colorscale, colorbar=dict(title="Value"))],
         layout=go.Layout(
             template="simple_white",
             title=dict(
-                text="Time-Evolving Heatmap",
-                x=0.5,  # Center title
+                text=title,
+                x=0.5,
                 font=dict(size=18, family="Arial, sans-serif")
             ),
             xaxis=dict(scaleanchor="y", visible=False),
             yaxis=dict(visible=False),
 
-            # Add Play/Pause buttons with better positioning
             updatemenus=[{
                 "buttons": [
                     {
@@ -41,7 +40,6 @@ def discrete_heatmap(arg: torch.Tensor):
                 "pad": {"r": 10, "t": 10}
             }],
 
-            # Improved slider with better spacing and visibility
             sliders=[{
                 "active": 0,
                 "currentvalue": {
@@ -63,7 +61,7 @@ def discrete_heatmap(arg: torch.Tensor):
         ),
         frames=[
             go.Frame(
-                data=[go.Heatmap(z=time_series[t], colorscale='Viridis')],
+                data=[go.Heatmap(z=time_series[t], colorscale=colorscale)],
                 name=str(t)
             ) for t in range(num_time_steps)
         ]

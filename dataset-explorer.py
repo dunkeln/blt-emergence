@@ -12,9 +12,19 @@ def _():
     import plotly.graph_objects as go
     import torch
 
-    from src.lattice.ca import Rule224
-    from src.utils import discrete_heatmap
-    return Rule224, discrete_heatmap, go, mo, np, pl, torch
+    from src.lattice import Rule224, StochasticLenia, MCSTLattice
+    from src.utils.plot import heatmap
+    return (
+        MCSTLattice,
+        Rule224,
+        StochasticLenia,
+        go,
+        heatmap,
+        mo,
+        np,
+        pl,
+        torch,
+    )
 
 
 @app.cell(hide_code=True)
@@ -31,7 +41,7 @@ def _(mo):
         + [x] Cellular Automata
         + [ ] continuous Cellular Automata
         + [ ] Lenia *(discretized biology-mimicking CA)*
-        + [ ] continuous-time Monte Carlo ✅
+        + [x] continuous-time Monte Carlo ✅
         + [ ] Langevin dynamics
         """
     )
@@ -39,16 +49,27 @@ def _(mo):
 
 
 @app.cell
-def _(Rule224, discrete_heatmap, torch):
-    ca = Rule224(shape=(150, 150), dtype=torch.int8)
-    time_series = ca.time_steps(128)
-    discrete_heatmap(time_series)
+def _(Rule224, heatmap, torch):
+    ca = Rule224(shape=(40, 40), dtype=torch.int8)
+    time_series = ca.time_steps(128).squeeze(dim=1)
+    heatmap(time_series, colorscale="rdpu")
     return ca, time_series
 
 
 @app.cell
-def _():
-    return
+def _(StochasticLenia, heatmap):
+    lenia = StochasticLenia(shape=(40, 40))
+    ts = lenia.time_steps(200)
+    heatmap(ts, colorscale="viridis")
+    return lenia, ts
+
+
+@app.cell
+def _(MCSTLattice, heatmap):
+    mcst = MCSTLattice(shape=(40, 40))
+    ts_ = mcst.time_steps(200)
+    heatmap(ts_, title="MCST heatmap", colorscale="redor")
+    return mcst, ts_
 
 
 if __name__ == "__main__":

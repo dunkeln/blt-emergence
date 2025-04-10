@@ -23,3 +23,9 @@ class BaseModel:
 
     def byte_decode(self, stream: bytes):
         return torch.frombuffer(stream, dtype=self.dtype).clone().reshape(*self.shape)
+
+    def size(self, idx = None):
+        if idx is None:
+            return self.lattice.size()
+        else:
+            return self.lattice.size(idx)
