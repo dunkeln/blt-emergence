@@ -66,10 +66,15 @@ def _(StochasticLenia, heatmap):
 
 @app.cell
 def _(MCSTLattice, heatmap):
-    mcst = MCSTLattice(shape=(40, 40))
+    mcst = MCSTLattice(shape=(20, 20))
     ts_ = mcst.time_steps(200)
     heatmap(ts_, title="MCST heatmap", colorscale="redor")
     return mcst, ts_
+
+
+@app.cell
+def _():
+    return
 
 
 if __name__ == "__main__":

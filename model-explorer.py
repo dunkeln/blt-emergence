@@ -1,6 +1,8 @@
+
+
 import marimo
 
-__generated_with = "0.11.10"
+__generated_with = "0.13.2"
 app = marimo.App(width="full")
 
 
@@ -10,10 +12,10 @@ def _():
     import torch
     import torch.nn as nn
     import io
-    from src.lattice.ca import Rule224
-    from src.utils import discrete_heatmap
+    from src.lattice import Rule224
+    from src.utils import heatmap
     import plotly.graph_objects as go
-    return Rule224, discrete_heatmap, go, io, mo, nn, torch
+    return Rule224, heatmap, mo, torch
 
 
 @app.cell
@@ -26,12 +28,12 @@ def _(mo):
 def _(Rule224, torch):
     ca = Rule224(shape=(50, 50), dtype=torch.int8)
     time_series = ca.time_steps(100)
-    return ca, time_series
+    return (time_series,)
 
 
 @app.cell
-def _(discrete_heatmap, time_series):
-    discrete_heatmap(time_series)
+def _(heatmap, time_series):
+    heatmap(time_series)
     return
 
 

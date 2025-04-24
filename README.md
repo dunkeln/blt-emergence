@@ -10,3 +10,4 @@ Emergent behavior in stochastic systems poses significant challenges for modelin
 *mentioned references are online posts, articles and other media*
 + [Understanding RoPE embeddings](https://medium.com/ai-insights-cobet/rotary-positional-embeddings-a-detailed-look-and-comprehensive-understanding-4ff66a874d83)
 + [Summary: Types of embeddings in Attention Mechanisms](https://azizbelaweid.substack.com/p/complete-summary-of-absolute-relative)
++ [Math and Pytorch for RoPE embeddings](https://nn.labml.ai/transformers/rope/index.html)
