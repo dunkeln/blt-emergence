@@ -11,11 +11,12 @@ def _():
     import marimo as mo
     import torch
     import torch.nn as nn
-    import io
+    from einops import rearrange
     from src.lattice import Rule224
     from src.utils import heatmap
     import plotly.graph_objects as go
-    return Rule224, heatmap, mo, torch
+    from src.model import RoPE, EncoderBlock, PatchingTransformer
+    return PatchingTransformer, Rule224, heatmap, mo, torch
 
 
 @app.cell
@@ -40,6 +41,28 @@ def _(heatmap, time_series):
 @app.cell
 def _(mo):
     mo.md(r"""### Scheme: Patching from Autoregressive Model""")
+    return
+
+
+@app.cell
+def _(PatchingTransformer, time_series):
+    x = time_series.squeeze(1)
+
+    model = PatchingTransformer()
+    logits = model(x)
+    return logits, model
+
+
+@app.cell
+def _(logits, torch):
+    probs = torch.softmax(logits, dim=-1)
+    probs
+    return
+
+
+@app.cell
+def _(logits, model):
+    model.compute_entropy(logits).size()
     return
 
 
