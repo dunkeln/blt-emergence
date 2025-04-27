@@ -7,7 +7,6 @@ from .core import BaseModel
 
 class Rule224(BaseModel):
     def __init__(self, shape: Tuple[int, int] =(20, 20), device='cpu', dtype=torch.float16) -> None:
-        # INFO: type checkings
         if not (isinstance(shape, tuple) and len(shape) == 2 and all(isinstance(i, int) for i in shape)):
             raise TypeError(f"Expected shape to be a tuple of 2 integers, got {shape}")
 

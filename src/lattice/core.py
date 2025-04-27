@@ -3,7 +3,7 @@ from torch import no_grad
 from typing import Tuple
 
 class BaseModel:
-    def __init__(self, shape: Tuple[int, int] =(20, 20), device='cpu', dtype=torch.float16) -> None:
+    def __init__(self, shape: Tuple[int, int] =(20, 20), device='cpu', dtype=torch.long) -> None:
         self.shape = shape
         self.dtype = dtype
         self.device = device

@@ -3,58 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
 
-"""
-class RoPE(nn.Module):
-    def __init__(self, d_model: int=8, theta_base: int=10_000):
-        super().__init__()
-        assert d_model % 4 == 0, "d_model must be divisible by 4 for RoPE-2D"
-
-        self.d_model = d_model
-        self.theta_base = theta_base
-        d_half = d_model // 2
-
-        # x & y freq.
-        inv_freq = 1.0 / (theta_base ** torch.arange(0, d_half, 2).float() / d_half)
-        self.register_buffer("inv_freq", inv_freq)
-
-    def forward(self, x: torch.Tensor):
-        _, D, H, W = x.size()
-        assert D == self.d_model, "embedding dim not same as instance `d_model`"
-
-        # split into x & y components
-        x_pos = torch.arange(H, device=x.device).float()
-        y_pos = torch.arange(W, device=x.device).float()
-
-        freq = self.inv_freq
-
-        angles_x = torch.einsum("i,j->ij", x_pos, freq)
-        angles_y = torch.einsum("i,j->ij", y_pos, freq)
-
-        sin_x = angles_x.sin()[..., None, :]
-        cos_x = angles_x.cos()[..., None, :]
-        sin_y = angles_y.sin()[None, ..., :]
-        cos_y = angles_y.cos()[None, ..., :]
-
-        # INFO: 4-way splitting patches
-        # x = x.view(B, H, W, D // 4, 4)
-        x = rearrange(x, 'b d h w -> b h w d4 r', d4=self.d_model // 2, r=2)
-        x1, x2, x3, x4 = x.unbind(-1)
-
-        x_rot_x1 = x1 * cos_x - x2 * sin_x
-        x_rot_x2 = x1 * sin_x + x2 * cos_x
-
-        x_rot_y1 = x3 * cos_y - x4 * sin_y
-        x_rot_y2 = x3 * sin_y + x4 * cos_y
-
-        out = torch.stack([
-            x_rot_x1, x_rot_x2, x_rot_y1, x_rot_y2
-        ], dim=-1)
-        # out = out.view(B, H, D, W)
-        out = rearrange(out, 'b h w d4 r -> b (d4 r) h w')
-
-        return out
-"""
-
 class RoPE(nn.Module):
     def __init__(self, d_model: int = 8, theta_base: int = 10000):
         super().__init__()

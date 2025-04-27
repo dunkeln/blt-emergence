@@ -2,9 +2,9 @@ import plotly.graph_objects as go
 import torch
 
 def heatmap(time_series: torch.Tensor, colorscale="cividis", title="Time-Evolving Heatmap"):
-    num_time_steps = time_series.size(0)
-    
-    if len(time_series.size()) == 4:
+    num_time_steps = time_series.shape[0]
+
+    if len(time_series.shape) == 4:
         time_series = time_series.squeeze(dim=1)
 
     fig = go.Figure(
