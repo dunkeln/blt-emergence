@@ -23,7 +23,6 @@ def _():
         MCSTLattice,
         PatchingTransformer,
         Rule224,
-        eval,
         heatmap,
         mo,
         nn,
@@ -99,114 +98,41 @@ def _(mo):
 
 @app.cell
 def _(DataLoader, LatticeSeqDataset, Rule224):
-    ds = LatticeSeqDataset(Rule224, shape=(50, 50))
+    ds = LatticeSeqDataset(Rule224, shape=(20, 20))
     train_loader = DataLoader(ds, batch_size=8, shuffle=True)
     val_loader = DataLoader(ds, batch_size=8, shuffle=False)
-    return train_loader, val_loader
+    return (train_loader,)
 
 
 @app.cell
-def _(eval, model, nn, torch, train, train_loader, val_loader):
+def _(model, nn, torch):
     device = torch.device('mps' if torch.backends.mps.is_available() else ('cuda' if torch.cuda.is_available() else 'cpu'))
     model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     criterion = nn.CrossEntropyLoss()
     num_epochs = 2
-
-    for epoch in range(1, num_epochs + 1):
-        train_loss = train(model, train_loader, optimizer, criterion, device)
-        val_loss, val_acc = eval(model, val_loader, criterion, device)
-        print(f"Epoch {epoch:2d} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | Val Acc: {val_acc:.4f}")
-    return criterion, optimizer
+    return criterion, device, optimizer
 
 
 @app.cell
-def _(torch):
-    def train_epoch(model, dataloader, optimizer, criterion, device):
-        """
-        Train the model for one epoch to predict next‐frame lattice states.
-        - model: PatchingTransformer
-        - dataloader: yields (inp, tgt) of shape (B, seq_len, H, W)
-        - criterion: nn.CrossEntropyLoss()
-        """
-        model.train()
-        total_loss = 0.0
-        total_tokens = 0
-
-        for inp, tgt in dataloader:
-            # inp, tgt: (B, T, H, W)
-            inp = inp.to(device)
-            tgt = tgt.to(device)
-            B, T, H, W = inp.shape
-
-            # merge time and batch dims so each frame is a separate example
-            x = inp.view(B * T, H, W)   # (B*T, H, W)
-            y = tgt.view(B * T, H, W)   # (B*T, H, W)
-
-            logits = model(x)           # (B*T, H*W, V)
-            V = logits.size(-1)
-
-            # compute cross‐entropy over all cells
-            loss = criterion(
-                logits.view(-1, V),     # (B*T*H*W, V)
-                y.view(-1)              # (B*T*H*W,)
-            )
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            # accumulate
-            n_tokens = B * T * H * W
-            total_loss += loss.item() * n_tokens
-            total_tokens += n_tokens
-
-        return total_loss / total_tokens
-
-
-    def eval_epoch(model, dataloader, criterion, device):
-        """
-        Evaluate the model on validation set, returning avg loss and accuracy.
-        """
-        model.eval()
-        total_loss = 0.0
-        total_tokens = 0
-        total_correct = 0
-
-        with torch.no_grad():
-            for inp, tgt in dataloader:
-                inp = inp.to(device)
-                tgt = tgt.to(device)
-                B, T, H, W = inp.shape
-
-                x = inp.view(B * T, H, W)
-                y = tgt.view(B * T, H, W)
-
-                logits = model(x)       # (B*T, H*W, V)
-                V = logits.size(-1)
-
-                loss = criterion(
-                    logits.view(-1, V),
-                    y.view(-1)
-                )
-
-                preds = logits.argmax(dim=-1)  # (B*T, H*W)
-                total_correct += (preds == y.view(B * T, H * W)).sum().item()
-
-                n_tokens = B * T * H * W
-                total_loss += loss.item() * n_tokens
-                total_tokens += n_tokens
-
-        avg_loss = total_loss / total_tokens
-        accuracy = total_correct / total_tokens
-        return avg_loss, accuracy
-    return (train_epoch,)
+def _(criterion, device, model, optimizer, train, train_loader):
+    train(model, train_loader, optimizer, criterion, device=device)
+    return
 
 
 @app.cell
-def _(criterion, model, optimizer, train_epoch, train_loader):
-    train_epoch(model, train_loader, optimizer, criterion, device="mps")
+async def _(mo):
+    import asyncio
+
+    for _ in mo.status.progress_bar(
+        range(10),
+        title="training...",
+        subtitle="Please wait",
+        show_eta=True,
+        show_rate=True
+    ):
+        await asyncio.sleep(0.5)
     return
 
 

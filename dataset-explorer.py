@@ -81,6 +81,10 @@ def _(mo):
 
         + Input *carries sequence of inputs*
         + Target *carries next step of the input sequences*
+
+        In generating the random initial lattices, the dataloader is drawing i.i.d samples from the time series distribtion of the lattice transition.
+
+
         """
     )
     return
