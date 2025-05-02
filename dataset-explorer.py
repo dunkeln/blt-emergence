@@ -12,8 +12,8 @@ def _():
     import torch
     from torch.utils.data import DataLoader
 
-    from src.lattice import Rule224, StochasticLenia, MCSTLattice
-    from src.utils import heatmap, LatticeSeqDataset
+    from stochasticlm.dynamics import Rule224, StochasticLenia, MCSTLattice
+    from stochasticlm.utils import heatmap, LatticeSeqDataset
     return (
         DataLoader,
         LatticeSeqDataset,
@@ -83,8 +83,6 @@ def _(mo):
         + Target *carries next step of the input sequences*
 
         In generating the random initial lattices, the dataloader is drawing i.i.d samples from the time series distribtion of the lattice transition.
-
-
         """
     )
     return
