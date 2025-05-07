@@ -2,12 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
-import mlflow
 from .mod import EncoderBlock, RoPE
 from .patching_lm import PatchingTransformer
+from .patcher import Patcher
 
 class LocalEncoder(nn.Module):
-    def __init__(self, num_states, d_model=128, num_layers=2, num_heads=4):
+    def __init__(self, num_states, d_model=128, num_layers=2, num_heads=4, patcher_uri: str="",):
         super().__init__()
         self.embed = nn.Embedding(num_states, d_model)
         self.rope  = RoPE(d_model)

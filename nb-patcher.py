@@ -20,7 +20,6 @@ def _():
     from stochasticlm.utils import heatmap, LatticeSeqDataset, learn_lm
     from stochasticlm.utils.patchinglm import train, eval
     from stochasticlm.models import PatchingTransformer, Patcher
-    from stochasticlm.models.test import Patcher as TestPatcher
     from stochasticlm.utils.checks import verify_patch_counts
 
     mlflow.set_tracking_uri("http://127.0.0.1:5000")
@@ -28,8 +27,8 @@ def _():
         CTMCActiveLattice,
         DataLoader,
         LatticeSeqDataset,
+        Patcher,
         Rule224,
-        TestPatcher,
         verify_patch_counts,
     )
 
@@ -42,11 +41,11 @@ def _(CTMCActiveLattice, DataLoader, LatticeSeqDataset, Rule224):
 
 
 @app.cell
-def _(TestPatcher):
+def _(Patcher):
     gol_uri = 'runs:/245da404fa404266b019fd238df9004b/model'
     ctmc_uri = 'runs:/d2db75446a8f489db1aea1a00039b9cb/model'
 
-    test_patcher = TestPatcher(model_uri=ctmc_uri, threshold=.63, max_patch_len=10)
+    test_patcher = Patcher(model_uri=ctmc_uri, max_patch_len=15)
     return (test_patcher,)
 
 
@@ -60,6 +59,11 @@ def _(ctmc_loader, test_patcher):
 @app.cell
 def _(inp, tokenized, verify_patch_counts):
     verify_patch_counts(tokenized, inp, pad_id=5)
+    return
+
+
+@app.cell
+def _():
     return
 
 

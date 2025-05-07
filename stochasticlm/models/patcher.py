@@ -1,14 +1,14 @@
 import mlflow
 import torch
 import torch.nn.functional as F
-from einops import rearrange
 
 class Patcher:
-    def __init__(self, model_uri: str, threshold: int, max_patch_len: int = 10, kind="delta"):
+    def __init__(self, model_uri: str, threshold: float = 0, max_patch_len: int = 10, kind="delta", pad_id=None):
         self.model = mlflow.pyfunc.load_model(model_uri)
         self.threshold = threshold
         self.max_patch_len = max_patch_len
         self.kind = kind
+        self.pad_id = pad_id
 
     def patch(self, lattice, kind=None):
         if kind:
@@ -18,7 +18,8 @@ class Patcher:
             lattice = lattice.flatten()
 
         N = lattice.numel()
-        pad_id = int(lattice.max().item()) + 1
+        if self.pad_id is None:
+            self.pad_id = int(lattice.max().item()) + 1
         logits = self.model.predict(
             lattice.unsqueeze(0).unsqueeze(0).numpy()
         )
@@ -58,7 +59,7 @@ class Patcher:
                     chunk = F.pad(
                         chunk,
                         (0, self.max_patch_len - chunk.numel()),
-                        value=pad_id
+                        value=self.pad_id
                     )
                 patches.append(chunk)
 
@@ -90,7 +91,7 @@ class Patcher:
 
         for b in range(B):
             for t in range(T):
-                patches_bt = batch_patches[b][t]       # (M_bt, L)
+                patches_bt = batch_patches[b][t]
                 m_bt = patches_bt.size(0)
                 all_patches[b, t, :m_bt] = patches_bt
                 mask[b, t, :m_bt] = True
