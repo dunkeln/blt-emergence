@@ -16,14 +16,6 @@ class BaseModel:
     def time_steps(self):
         raise NotImplementedError("method `get_series` not implemented")
 
-    def byte_encode(self):
-        flat_tensor = self.lattice.flatten()
-        encoded = flat_tensor.numpy().tobytes()
-        return encoded
-
-    def byte_decode(self, stream: bytes):
-        return torch.frombuffer(stream, dtype=self.dtype).clone().reshape(*self.shape)
-
     def size(self, idx = None):
         if idx is None:
             return self.lattice.size()

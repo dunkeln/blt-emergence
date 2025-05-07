@@ -45,9 +45,3 @@ class PatchingTransformer(nn.Module):
 
         logits = self.lm_head(x)
         return logits
-
-    def compute_entropy(self, logits: torch.Tensor):
-        probs = F.softmax(logits, dim=-1)
-        logp = torch.log(probs + 1e-12)
-        entropy = -torch.sum(probs * logp, dim=-1)
-        return entropy

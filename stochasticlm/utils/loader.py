@@ -1,6 +1,13 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset
+import random
+
+def seed_worker(worker_id):
+    base = torch.initial_seed() % 2**32
+    random.seed(base + worker_id)
+    torch.manual_seed(base + worker_id)
+
 
 class LatticeSeqDataset(Dataset):
     def __init__(self, rule_class, shape=(20,20), seq_length=32, num_samples=1000, device='cpu'):
@@ -24,7 +31,7 @@ class LatticeSeqDataset(Dataset):
         rule = self.rule_class(self.shape, device=self.device)
         frames = []
         for _ in range(self.seq_length + 1):
-            sample = next(rule).lattice
+            sample = next(rule).lattice.clone()
             frames.append(sample)
         seq = torch.stack(frames, dim=0)
         seq = seq.long()

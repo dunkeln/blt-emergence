@@ -12,16 +12,17 @@ def _():
     import torch
     from torch.utils.data import DataLoader
 
-    from stochasticlm.dynamics import Rule224, StochasticLenia, MCSTLattice
-    from stochasticlm.utils import heatmap, LatticeSeqDataset
+    from stochasticlm.dynamics import Rule224, StochasticLenia, CTMCActiveLattice
+    from stochasticlm.utils import heatmap, LatticeSeqDataset, seed_worker
     return (
+        CTMCActiveLattice,
         DataLoader,
         LatticeSeqDataset,
-        MCSTLattice,
         Rule224,
         StochasticLenia,
         heatmap,
         mo,
+        seed_worker,
         torch,
     )
 
@@ -64,10 +65,10 @@ def _(StochasticLenia, heatmap):
 
 
 @app.cell
-def _(MCSTLattice, heatmap):
-    mcst = MCSTLattice(shape=(20, 20))
-    ts_ = mcst.time_steps(200)
-    heatmap(ts_, title="MCST heatmap", colorscale="redor")
+def _(CTMCActiveLattice, heatmap):
+    ctmc = CTMCActiveLattice(shape=(20, 20))
+    ts_ctmc = ctmc.time_steps(200)
+    heatmap(ts_ctmc, title="CTMC Active Matter heatmap", colorscale="redor")
     return
 
 
@@ -89,17 +90,16 @@ def _(mo):
 
 
 @app.cell
-def _(DataLoader, LatticeSeqDataset, Rule224):
-    ds = LatticeSeqDataset(Rule224)
-    loader = DataLoader(ds, batch_size=8, shuffle=True)
+def _(CTMCActiveLattice, DataLoader, LatticeSeqDataset, seed_worker):
+    ds = LatticeSeqDataset(CTMCActiveLattice)
+    loader = DataLoader(ds, batch_size=8, shuffle=False, worker_init_fn=seed_worker, pin_memory=True)
 
     for batch_idx, (inp, tgt) in enumerate(loader):
-        # inp, tgt are each of shape (batch, seq_len, H, W)
         print(f"Batch {batch_idx}:")
-        print("  input  :", inp.shape)   # → torch.Size([8, 32, 20, 20])
-        print("  target :", tgt.shape)   # → torch.Size([8, 32, 20, 20])
+        print("  input  :", inp.shape)
+        print("  target :", tgt.shape)
         break
-    return (inp,)
+    return inp, tgt
 
 
 @app.cell
@@ -109,7 +109,14 @@ def _(heatmap, inp):
 
 
 @app.cell
-def _():
+def _(heatmap, tgt):
+    heatmap(tgt[0,...])
+    return
+
+
+@app.cell
+def _(inp, torch):
+    torch.unique(inp[0, 0, ...])
     return
 
 

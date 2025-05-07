@@ -14,18 +14,23 @@ def _():
     from torch.utils.data import DataLoader, Dataset
     from einops import rearrange
     import mlflow
+    import numpy as np
 
-    from stochasticlm.dynamics import Rule224, MCSTLattice
-    from stochasticlm.utils import heatmap, LatticeSeqDataset, learn_lm
+    # visualization tools
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+
+    from stochasticlm.dynamics import Rule224, CTMCActiveLattice
+    from stochasticlm.utils import heatmap, LatticeSeqDataset, learn_lm, seed_worker
     from stochasticlm.utils.patchinglm import train, eval
-    from stochasticlm.models import PatchingTransformer
+    from stochasticlm.models import PatchingTransformer, Patcher
 
     device = torch.device('mps' if torch.backends.mps.is_available() else ('cuda' if torch.cuda.is_available() else 'cpu'))
     mlflow.set_tracking_uri("http://127.0.0.1:5000")
     return (
+        CTMCActiveLattice,
         DataLoader,
         LatticeSeqDataset,
-        MCSTLattice,
         PatchingTransformer,
         Rule224,
         device,
@@ -105,16 +110,16 @@ def _(
 
 @app.cell
 def _(mo):
-    train_btn_mcts = mo.ui.run_button(label="train model", kind="warn")
-    train_btn_mcts
-    return (train_btn_mcts,)
+    train_btn_ctmc = mo.ui.run_button(label="train model", kind="warn")
+    train_btn_ctmc
+    return (train_btn_ctmc,)
 
 
 @app.cell
 def _(
+    CTMCActiveLattice,
     DataLoader,
     LatticeSeqDataset,
-    MCSTLattice,
     PatchingTransformer,
     device,
     eval,
@@ -123,35 +128,30 @@ def _(
     nn,
     torch,
     train,
-    train_btn_mcts,
+    train_btn_ctmc,
 ):
-    mo.stop(not train_btn_mcts.value)
+    mo.stop(not train_btn_ctmc.value)
 
-    ds_mcts = LatticeSeqDataset(MCSTLattice, shape=(20, 20))
-    model_mcts = PatchingTransformer(d_model=8, num_embeddings=5).to(device)
+    ds_ctmc = LatticeSeqDataset(CTMCActiveLattice, shape=(20, 20))
+    model_ctmc = PatchingTransformer(d_model=8, num_embeddings=5).to(device)
 
-    config_mcts = {
+    config_ctmc = {
         'experiment': 'patching_lm',
         'tag': 'test',
         'tag_version': '0.0.0',
-        'kind': 'MCTS',
+        'kind': 'CTMC',
         'num_epochs': 2,
-        'model': model_mcts,
+        'model': model_ctmc,
         'device': device,
-        'optimizer': torch.optim.Adam(model_mcts.parameters(), lr=1e-4),
+        'optimizer': torch.optim.Adam(model_ctmc.parameters(), lr=1e-4),
         'criterion': nn.CrossEntropyLoss(),
-        'train_loader': DataLoader(ds_mcts, batch_size=8, shuffle=True),
-        'val_loader': DataLoader(ds_mcts, batch_size=8, shuffle=False),
+        'train_loader': DataLoader(ds_ctmc, batch_size=8, shuffle=True, pin_memory=True),
+        'val_loader': DataLoader(ds_ctmc, batch_size=8, shuffle=False, pin_memory=True),
         'train_fn': train,
         'eval_fn': eval,
     }
 
-    learn_lm(config_mcts)
-    return
-
-
-@app.cell
-def _():
+    learn_lm(config_ctmc)
     return
 
 
