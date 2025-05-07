@@ -3,74 +3,96 @@ import torch
 import torch.nn.functional as F
 from einops import rearrange
 
-# BUG: potential model prediction issue for Large LM due to return dtype
-# INFO:
-# trained model is retrieved from mlflow artifacts
 class Patcher:
-    def __init__(self, model_uri: str, threshold: float, max_patch_len: int, device: str="cpu"):
-        # Load MLflow pyfunc model for patching
+    def __init__(self, model_uri: str, threshold: int, max_patch_len: int = 10, kind="delta"):
         self.model = mlflow.pyfunc.load_model(model_uri)
         self.threshold = threshold
-        self.max_len = max_patch_len
-        self.device = torch.device(device)
+        self.max_patch_len = max_patch_len
+        self.kind = kind
 
-    def _tokenize_single(self, flat_tensor):
-        """
-        Tokenize a single flattened lattice (1D tensor of length N).
-        Returns a tensor of shape (M, max_patch_len).
-        """
-        N = flat_tensor.numel()
-        # Run through pyfunc to get logits
-        batch_flat = flat_tensor.unsqueeze(0).cpu().numpy()      # (1, N)
-        logits = self.model.predict(batch_flat)                 # numpy (1, N, V)
-        # Compute entropy per position
-        probs = torch.from_numpy(logits[0]).softmax(dim=-1)     # (N, V)
-        entropy = -(probs * torch.log(probs + 1e-12)).sum(dim=-1)  # (N,)
+    def patch(self, lattice, kind=None):
+        if kind:
+            self.kind = kind
 
-        cutoffs = [0]
-        for i, h in enumerate(entropy.tolist(), start=1):
-            if h < self.threshold:
-                cutoffs.append(i)
-        cutoffs.append(N)
+        if lattice.dim() > 1:
+            lattice = lattice.flatten()
+
+        N = lattice.numel()
+        pad_id = int(lattice.max().item()) + 1
+        logits = self.model.predict(
+            lattice.unsqueeze(0).unsqueeze(0).numpy()
+        )
+
+        logits = torch.from_numpy(logits)
+        probs = F.softmax(logits[0], dim=-1)
+        entropy = -(probs * torch.log(probs + 1e-8)).sum(dim=-1)
+
+        diffs = entropy[1:] - entropy[:-1]
+        cuts = [0]
+        match self.kind:
+            case "delta":
+                delta_idxs = (diffs > 0.1).nonzero(as_tuple=False).flatten().add(1)
+                cuts = [0] + delta_idxs.tolist() + [N]
+
+            case "percentile":
+                pct  = torch.quantile(entropy, .95)
+                cuts = [0] + [i for i, h in enumerate(entropy.tolist(), start=1) if h > pct] + [N]
+
+            case "combined" | _:
+                cond1 = entropy > self.threshold
+                cond2 = torch.cat([torch.tensor([False], device='cpu'), diffs > 0.1])
+                combined_idxs = (cond1 | cond2).nonzero(as_tuple=False).flatten().tolist()
+                cuts = [0] + combined_idxs + [N]
+
+        cuts = sorted(set(cuts))
 
         patches = []
-        for start, end in zip(cutoffs, cutoffs[1:]):
-            patch = flat_tensor[start:end]
-            L = patch.numel()
-            if L > self.max_len:
-                patch = patch[:self.max_len]
-            else:
-                patch = F.pad(patch, (0, self.max_len - L), value=0)
-            patches.append(patch)
+        for start, end in zip(cuts[:-1], cuts[1:]):
+            segment = lattice[start:end]
+            length = segment.numel()
+            if length == 0:
+                continue
+            for i in range(0, length, self.max_patch_len):
+                chunk = segment[i:i + self.max_patch_len]
+                if chunk.numel() < self.max_patch_len:
+                    chunk = F.pad(
+                        chunk,
+                        (0, self.max_patch_len - chunk.numel()),
+                        value=pad_id
+                    )
+                patches.append(chunk)
 
-        return torch.stack(patches, dim=0)  # (M, max_len)
+        patches = torch.stack(patches)
+        return entropy, patches
 
-    def tokenize(self, lattice):
-        """
-        Tokenize input lattices into patches. Accepts:
-          - 3D tensor (B', H, W): batch of 2D lattices flattened over time.
-          - 2D tensor (H, W): single lattice.
-          - 1D tensor (N,): single flattened lattice.
+    def batch_patch(self, lattice_seq, kind="delta"):
+        B, T, _, _ = lattice_seq.size()
+        batch_patches = []
+        pad_id = int(lattice_seq.max().item()) + 1
 
-        Returns a list of patch tensors per example, each of shape (M_i, max_patch_len).
-        """
-        # Case: batch of lattices
-        if lattice.dim() == 3:
-            Bp, H, W = lattice.shape
-            results = []
-            for i in range(Bp):
-                grid = lattice[i]
-                flat = rearrange(grid, 'h w -> (h w)').to(self.device)
-                results.append(self._tokenize_single(flat))
-            return results
+        for b in range(B):
+            patches_b = []
+            for t in range(T):
+                _, patch = self.patch(lattice_seq[b, t], kind)
+                patches_b.append(patch)
+            batch_patches.append(patches_b)
 
-        # Case: single 2D lattice
-        if lattice.dim() == 2:
-            flat = rearrange(lattice, 'h w -> (h w)').to(self.device)
-            return self._tokenize_single(flat)
+        # INFO: more uniform patches
+        patches_counts = [
+            [p.size(0) for p in seq_patches]
+            for seq_patches in batch_patches
+        ]
 
-        # Case: single flattened lattice
-        if lattice.dim() == 1:
-            return self._tokenize_single(lattice.to(self.device))
+        max_patches = max(max(row) for row in patches_counts)
 
-        raise ValueError(f"Unsupported tensor shape: {tuple(lattice.shape)}")
+        all_patches = torch.full((B, T, max_patches, self.max_patch_len), pad_id, dtype=torch.long, device='cpu')
+        mask = torch.zeros((B, T, max_patches), dtype=torch.bool, device='cpu')
+
+        for b in range(B):
+            for t in range(T):
+                patches_bt = batch_patches[b][t]       # (M_bt, L)
+                m_bt = patches_bt.size(0)
+                all_patches[b, t, :m_bt] = patches_bt
+                mask[b, t, :m_bt] = True
+
+        return all_patches, mask
