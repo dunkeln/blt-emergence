@@ -32,7 +32,6 @@ def _():
         DataLoader,
         LatticeSeqDataset,
         PatchingTransformer,
-        Rule224,
         device,
         eval,
         learn_lm,
@@ -65,25 +64,12 @@ def _(mo):
 def _(mo):
     train_btn = mo.ui.run_button(label="train model", kind="warn")
     train_btn
-    return (train_btn,)
+    return
 
 
-@app.cell
-def _(
-    DataLoader,
-    LatticeSeqDataset,
-    PatchingTransformer,
-    Rule224,
-    device,
-    eval,
-    learn_lm,
-    mo,
-    nn,
-    torch,
-    train,
-    train_btn,
-):
-    mo.stop(not train_btn.value)
+app._unparsable_cell(
+    r"""
+     mo.stop(not train_btn.value)
 
     ds = LatticeSeqDataset(Rule224, shape=(20, 20))
     model = PatchingTransformer(d_model=8, num_embeddings=2).to(device)
@@ -93,7 +79,7 @@ def _(
         'tag': 'test',
         'tag_version': '0.0.2',
         'kind': 'GoL',
-        'num_epochs': 2,
+        'num_epochs': 5,
         'model': model,
         'device': device,
         'optimizer': torch.optim.Adam(model.parameters(), lr=1e-4),
@@ -105,7 +91,9 @@ def _(
     }
 
     learn_lm(config)
-    return
+    """,
+    name="_"
+)
 
 
 @app.cell
@@ -140,7 +128,7 @@ def _(
         'tag': 'test',
         'tag_version': '0.0.0',
         'kind': 'CTMC',
-        'num_epochs': 2,
+        'num_epochs': 5,
         'model': model_ctmc,
         'device': device,
         'optimizer': torch.optim.Adam(model_ctmc.parameters(), lr=1e-4),

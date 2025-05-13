@@ -28,6 +28,8 @@ def learn_lm(config: dict):
     device = config['device']
     tag = config.get('tag', 'test')
     version = config.get('version', '0.0.0')
+    patcher_uri = config.get('patcher_uri')
+    max_patch_len = config.get('max_patch_len')
 
 
     step_size = len(val_loader) + len(train_loader)
@@ -57,7 +59,7 @@ def learn_lm(config: dict):
 
         with mo.status.progress_bar(
             total=num_epochs * step_size,
-            title=f"Patching LM | {kind}",
+            title=f"{experiment} | {kind}",
             subtitle="training...",
             show_eta=True,
             show_rate=True,
@@ -66,9 +68,17 @@ def learn_lm(config: dict):
             remove_on_exit=False
         ) as bar:
             for epoch in range(num_epochs):
-                train_fn(model, train_loader, optimizer, criterion, device, epoch)
+                if patcher_uri and max_patch_len:
+                    train_fn(model, patcher_uri, max_patch_len, train_loader, optimizer, criterion, device, epoch)
+                else:
+                    train_fn(model, train_loader, optimizer, criterion, device, epoch)
+
                 bar.update(subtitle="evaluating...", increment=len(train_loader))
-                eval_fn(model, val_loader, criterion, device, epoch)
+
+                if patcher_uri and max_patch_len:
+                    eval_fn(model, patcher_uri, max_patch_len, val_loader, criterion, device, epoch)
+                else:
+                    eval_fn(model, val_loader, criterion, device, epoch)
                 cpu_pct = psutil.cpu_percent()
                 ram_pct = psutil.virtual_memory().percent
                 rss_gb  = psutil.Process(os.getpid()).memory_info().rss / (1024**3)

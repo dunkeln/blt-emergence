@@ -22,12 +22,12 @@ def train(model, dataloader, optimizer, criterion, device, epoch=0, log_interval
         x = inp.view(B * T, H, W)
         y = tgt.view(B * T, H, W)
 
-        logits = model(x)                      # (B*T, H*W, V)
+        logits = model(x)
         V = logits.size(-1)
 
         loss = criterion(logits.view(-1, V), y.view(-1))
-        preds = logits.argmax(dim=-1)          # (B*T, H*W)
-        y_flat = y.view(B * T, H * W)          # (B*T, H*W)
+        preds = logits.argmax(dim=-1)
+        y_flat = y.view(B * T, H * W)
         batch_correct = (preds == y_flat).sum().item()
         batch_tokens = B * T * H * W
 
@@ -35,22 +35,22 @@ def train(model, dataloader, optimizer, criterion, device, epoch=0, log_interval
         loss.backward()
         optimizer.step()
 
-        # accumulate totals
+
         total_loss   += loss.item() * batch_tokens
         total_tokens += batch_tokens
         total_correct+= batch_correct
 
-        # accumulate running for interval logging
+
         running_loss   += loss.item() * batch_tokens
         running_correct+= batch_correct
         global_step   += 1
 
 
-        # log per-iteration
+
         mlflow.log_metric('itvl/train/loss', loss.item(), step=global_step)
         mlflow.log_metric('itvl/train/accuracy', batch_correct / batch_tokens, step=global_step)
 
-        # log per-interval averages
+
         if (idx + 1) % log_interval == 0:
             avg_loss = running_loss / (log_interval * batch_tokens)
             avg_acc  = running_correct / (log_interval * batch_tokens)
@@ -59,7 +59,7 @@ def train(model, dataloader, optimizer, criterion, device, epoch=0, log_interval
             running_loss = running_correct = 0
 
 
-    # epoch-level metrics
+
     avg_loss = total_loss / total_tokens
     accuracy = total_correct / total_tokens
     bpc      = avg_loss / math.log(2)
@@ -98,22 +98,22 @@ def eval(model, dataloader, criterion, device, epoch=0, log_interval=25):
             batch_correct = (preds == y_flat).sum().item()
             batch_tokens  = B * T * H * W
 
-            # accumulate totals
+
             total_loss   += loss.item() * batch_tokens
             total_tokens += batch_tokens
             total_correct+= batch_correct
 
-            # running for optional interval logging
+
             if log_interval:
                 running_loss   += loss.item() * batch_tokens
                 running_correct+= batch_correct
 
             global_step += 1
-            # per-iteration logging
+
             mlflow.log_metric('itvl/val/loss', loss.item(), step=global_step)
             mlflow.log_metric('itvl/val/accuracy', batch_correct / batch_tokens, step=global_step)
 
-            # per-interval validation (optional)
+
             if log_interval and (idx + 1) % log_interval == 0:
                 avg_loss = running_loss / (log_interval * batch_tokens)
                 avg_acc  = running_correct / (log_interval * batch_tokens)
@@ -121,7 +121,7 @@ def eval(model, dataloader, criterion, device, epoch=0, log_interval=25):
                 mlflow.log_metric('batch/val/avg_accuracy', avg_acc, step=global_step)
                 running_loss = running_correct = 0
 
-    # epoch-level metrics
+
     avg_loss = total_loss / total_tokens
     accuracy = total_correct / total_tokens
     bpc      = avg_loss / math.log(2)

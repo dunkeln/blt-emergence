@@ -2,8 +2,9 @@ import mlflow
 import torch
 import torch.nn.functional as F
 
+# WARN: have to keep a pad_id with an integer value to declare loss fn instance before introducing the masked patches
 class Patcher:
-    def __init__(self, model_uri: str, threshold: float = 0, max_patch_len: int = 10, kind="delta", pad_id=None):
+    def __init__(self, model_uri: str, threshold: float = 0, max_patch_len: int = 10, kind="delta", pad_id=-1000):
         self.model = mlflow.pyfunc.load_model(model_uri)
         self.threshold = threshold
         self.max_patch_len = max_patch_len
@@ -18,7 +19,7 @@ class Patcher:
             lattice = lattice.flatten()
 
         N = lattice.numel()
-        if self.pad_id is None:
+        if self.pad_id is -1000:
             self.pad_id = int(lattice.max().item()) + 1
         logits = self.model.predict(
             lattice.unsqueeze(0).unsqueeze(0).numpy()

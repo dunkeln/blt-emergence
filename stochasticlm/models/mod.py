@@ -53,9 +53,7 @@ class EncoderBlock(nn.Module):
         self.num_heads = num_heads
         self.head_dim = d_model // num_heads
 
-        # linear projections for q, k, v
         self.in_proj = nn.Linear(d_model, 3 * d_model)
-        # output projection
         self.out_proj = nn.Linear(d_model, d_model)
 
         self.norm1 = nn.LayerNorm(d_model)
@@ -65,9 +63,9 @@ class EncoderBlock(nn.Module):
             nn.Linear(d_model * 4, d_model),
         )
         self.norm2 = nn.LayerNorm(d_model)
+        self.largeAttn = nn.MultiheadAttention(d_model, num_heads, batch_first=True)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # INFO: x: (B, seq_len, d_model)
+    def forward(self, x: torch.Tensor, is_causal: bool=True, key_padding_mask=None) -> torch.Tensor:
         B, L, _ = x.shape
 
         qkv = self.in_proj(x)
@@ -76,12 +74,27 @@ class EncoderBlock(nn.Module):
         k = k.view(B, L, self.num_heads, self.head_dim).transpose(1, 2)
         v = v.view(B, L, self.num_heads, self.head_dim).transpose(1, 2)
 
-        # INFO: scaled dot-product with built-in causal mask, aka flash attn.
-        attn_out = F.scaled_dot_product_attention(
-            q, k, v,
-            attn_mask=None,
-            is_causal=True
-        )
+        # INFO: while patchign
+        if is_causal:
+            attn_out = F.scaled_dot_product_attention(
+                q, k, v,
+                attn_mask=None,
+                is_causal=True
+            )
+
+        # INFO: while learning stochastic dynamics
+        else:
+            attn_mask = None
+            assert key_padding_mask is not None, "provide `key_padding_mask`"
+            # INFO: just “(L,)” → broadcast to (L,L)
+            pad2d = key_padding_mask[0]
+            attn_mask = pad2d.unsqueeze(0).expand(L, L)
+
+            attn_out = F.scaled_dot_product_attention(
+                q, k, v,
+                attn_mask=attn_mask,
+                is_causal=False
+            )
 
         attn_out = attn_out.transpose(1, 2).contiguous().view(B, L, self.d_model)
         attn_out = self.out_proj(attn_out)
