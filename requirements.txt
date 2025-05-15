@@ -1,5 +1,5 @@
 einops==0.8.1
-marimo==0.13.7
+marimo==0.13.9
 mlflow==2.22.0
 mlflow_skinny==2.22.0
 numpy==2.2.5
