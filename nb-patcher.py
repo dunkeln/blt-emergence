@@ -45,7 +45,7 @@ def _(Patcher):
     gol_uri = 'runs:/245da404fa404266b019fd238df9004b/model'
     ctmc_uri = 'runs:/d2db75446a8f489db1aea1a00039b9cb/model'
 
-    test_patcher = Patcher(model_uri=ctmc_uri, max_patch_len=15)
+    test_patcher = Patcher(model_uri=ctmc_uri, max_patch_len=15, threshold=.7)
     return (test_patcher,)
 
 
@@ -53,12 +53,28 @@ def _(Patcher):
 def _(ctmc_loader, test_patcher):
     inp, tgt = next(iter(ctmc_loader))
     tokenized, mask = test_patcher.batch_patch(inp, kind="delta")
-    return inp, tokenized
+    return (inp,)
 
 
 @app.cell
-def _(inp, tokenized, verify_patch_counts):
-    verify_patch_counts(tokenized, inp, pad_id=5)
+def _(inp, test_patcher):
+    delta_tokenized, mask_delta = test_patcher.batch_patch(inp, kind="delta")
+    ptile_tokenized, _ = test_patcher.batch_patch(inp, kind="percentile")
+    combined_tokenized, _ = test_patcher.batch_patch(inp, kind="combined")
+    return combined_tokenized, delta_tokenized, ptile_tokenized
+
+
+@app.cell
+def _(
+    combined_tokenized,
+    delta_tokenized,
+    inp,
+    ptile_tokenized,
+    verify_patch_counts,
+):
+    verify_patch_counts(delta_tokenized, inp, pad_id=5)
+    verify_patch_counts(ptile_tokenized, inp, pad_id=5)
+    verify_patch_counts(combined_tokenized, inp, pad_id=5)
     return
 
 

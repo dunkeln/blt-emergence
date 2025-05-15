@@ -54,7 +54,7 @@ def _(Patcher):
     ctmc_uri = 'runs:/d2db75446a8f489db1aea1a00039b9cb/model'
 
     test_patcher = Patcher(model_uri=ctmc_uri, max_patch_len=15)
-    return (gol_uri,)
+    return ctmc_uri, gol_uri
 
 
 @app.cell
@@ -88,13 +88,13 @@ def _(
         'tag': 'test',
         'tag_version': '0.0.0',
         'kind': 'GoL',
-        'num_epochs': 2,
+        'num_epochs': 10,
         'model': model,
         'device': torch.device('mps'),
         'optimizer': torch.optim.Adam(model.parameters(), lr=1e-4),
         'criterion': nn.CrossEntropyLoss(),
-        'train_loader': DataLoader(ds, batch_size=32, shuffle=True),
-        'val_loader': DataLoader(ds, batch_size=32, shuffle=False),
+        'train_loader': DataLoader(ds, batch_size=64, shuffle=True),
+        'val_loader': DataLoader(ds, batch_size=64, shuffle=False),
         'train_fn': train,
         'eval_fn': eval,
         'patcher_uri': gol_uri,
@@ -102,6 +102,54 @@ def _(
     }
 
     learn_lm(config)
+    return
+
+
+@app.cell
+def _(mo):
+    train_btn_ctmc = mo.ui.run_button(label="train model", kind="warn")
+    train_btn_ctmc
+    return (train_btn_ctmc,)
+
+
+@app.cell
+def _(
+    CTMCActiveLattice,
+    DataLoader,
+    LargeLM,
+    LatticeSeqDataset,
+    ctmc_uri,
+    eval,
+    learn_lm,
+    mo,
+    nn,
+    torch,
+    train,
+    train_btn_ctmc,
+):
+    mo.stop(not train_btn_ctmc.value)
+
+    ds_ctmc = LatticeSeqDataset(CTMCActiveLattice, shape=(20, 20))
+    model_ctmc = LargeLM(num_states=5, d_model=128, enc_heads=4,latent_layers=6,latent_heads=8,max_patch_len=15)
+    config_ctmc = {
+        'experiment': 'global_lm',
+        'tag': 'test',
+        'tag_version': '0.0.1',
+        'kind': 'ctmc',
+        'num_epochs': 10,
+        'model': model_ctmc,
+        'device': torch.device('mps'),
+        'optimizer': torch.optim.Adam(model_ctmc.parameters(), lr=1e-4),
+        'criterion': nn.CrossEntropyLoss(),
+        'train_loader': DataLoader(ds_ctmc, batch_size=64, shuffle=True),
+        'val_loader': DataLoader(ds_ctmc, batch_size=64, shuffle=False),
+        'train_fn': train,
+        'eval_fn': eval,
+        'patcher_uri': ctmc_uri,
+        'max_patch_len': 15
+    }
+
+    learn_lm(config_ctmc)
     return
 
 

@@ -1,1 +1,11 @@
-
+einops==0.8.1
+marimo==0.13.7
+mlflow==2.22.0
+mlflow_skinny==2.22.0
+numpy==2.2.5
+nvidia_ml_py==12.570.86
+pandas==2.2.3
+plotly==6.0.0
+psutil==7.0.0
+pynvml==12.0.0
+torch==2.6.0
