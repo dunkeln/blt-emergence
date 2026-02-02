@@ -4,6 +4,7 @@
 
 Emergent behavior in stochastic systems poses significant challenges for modeling and prediction due to the exponential growth of possible state transitions and the complexity of nonlocal interactions. In this work, we propose a novel transformer-based framework that learns and predicts the stochastic dynamics of a two-dimensional stochastic lattice. The architecture defines dynamically sized patches derived from the predictive entropy at each spatial location, gathering lower compute patches in long-tail sequences and higher compute patches in short-tail sequences.
 
+📝 [link](https://dunkeln.github.io/posts/thesis) to blog
 
 ## References
 
